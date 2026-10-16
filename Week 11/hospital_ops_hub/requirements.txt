@@ -1,0 +1,12 @@
+langgraph>=1.0
+langchain>=1.0
+langchain-openai>=1.0
+langchain-core>=1.0
+langchain-ollama>=1.0
+mem0ai>=2.0
+psycopg[binary]>=3.2
+pydantic>=2.7
+python-dotenv>=1.0
+pandas>=2.0
+streamlit>=1.40
+pytest>=8.0

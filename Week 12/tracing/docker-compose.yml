@@ -1,0 +1,22 @@
+name: ticket-agent
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ticket-postgres
+    environment:
+      POSTGRES_USER: ticket_user
+      POSTGRES_PASSWORD: ticket_pass
+      POSTGRES_DB: tickets
+    ports:
+      - "5433:5432"   # host 5433 -> container 5432 (avoids clashing with a local Postgres)
+    volumes:
+      - ticket_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticket_user -d tickets"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  ticket_pgdata:

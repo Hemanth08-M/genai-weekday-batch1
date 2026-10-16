@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: ticket-postgres
+    environment:
+      POSTGRES_USER: ticket_user
+      POSTGRES_PASSWORD: ticket_pass       # dev-only credentials
+      POSTGRES_DB: tickets
+    ports:
+      - "5433:5432"                        # optional: lets YOU reach the DB from the host. Containers don't need it.
+    volumes:
+      - ticket_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticket_user -d tickets"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 120s                   # crash recovery after an unclean shutdown can take over a minute
+    restart: unless-stopped
+
+  api:
+    build: .
+    container_name: ticket-api
+    env_file: .env                         # secrets injected at runtime, never baked into the image
+    environment:
+      # Inside the Compose network the DB is reached by SERVICE NAME and its INTERNAL port.
+      # This overrides any DATABASE_URL in .env (which points at localhost for running outside Docker).
+      DATABASE_URL: postgresql://ticket_user:ticket_pass@postgres:5432/tickets
+    dns:                                   # Docker Desktop's resolver sometimes fails for external hosts (Langfuse cloud)
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy         # wait until Postgres actually accepts connections
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  ui:
+    build: ./ui
+    container_name: ticket-ui
+    environment:
+      API_URL: http://api:8000             # service name, resolved by Compose's built-in DNS
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 5s
+                                                                                retries: 6
+      start_period: 15s
+    restart: unless-stopped
+
+volumes:
+  ticket_pgdata:
